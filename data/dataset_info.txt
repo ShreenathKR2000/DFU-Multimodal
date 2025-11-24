@@ -1,0 +1,36 @@
+DFU Multimodal Dataset Information
+==================================================
+
+TRAIN Split:
+  RGB Dataset:
+    Healthy: 380
+    Ulcer:   358
+    Total:   738
+
+  Thermal Dataset:
+    Healthy: 612
+    Ulcer:   615
+    Total:   1227
+
+VAL Split:
+  RGB Dataset:
+    Healthy: 81
+    Ulcer:   77
+    Total:   158
+
+  Thermal Dataset:
+    Healthy: 170
+    Ulcer:   252
+    Total:   422
+
+TEST Split:
+  RGB Dataset:
+    Healthy: 82
+    Ulcer:   77
+    Total:   159
+
+  Thermal Dataset:
+    Healthy: 108
+    Ulcer:   109
+    Total:   217
+

@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Checkpoints and model weights
+*.pt
+*.pth
+checkpoints/
+logs/
+
+# Ignore raw dataset directories and large image folders
+DFU_RGB/
+DFU_Thermal/
+data/rgb/
+data/thermal/
+data/rgb_standardized/
+data/thermal_standardized/
+data/paired/
+
+# Keep small metadata and docs
+!data/dataset_info.txt
+!data/*.md
+!data/*.csv
+
+# Ignore large archives
+*.zip
+*.tar.gz
+*.tgz
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Allow tracking a small sample folder if present
+data/sample/
+!data/sample/.gitkeep
