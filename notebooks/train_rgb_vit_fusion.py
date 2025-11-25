@@ -38,7 +38,8 @@ LR = 1e-4
 
 CHECKPOINT_DIR = project_root / "logs" / "checkpoints"
 CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
-DATA_DIR = project_root / "data"
+# Use the global standardized dataset location
+DATA_DIR = Path("/home/skr/CompVis/Dataset/data")
 
 # =====================
 # AUGMENTATIONS

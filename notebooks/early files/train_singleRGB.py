@@ -36,7 +36,8 @@ transforms_mod = get_transforms(MODALITY)
 # =====================
 # DATASET AND DATALOADER
 # =====================
-data_dir = project_root / "data"
+# Use the global standardized dataset location
+data_dir = Path("/home/skr/CompVis/Dataset/data")
 rgb_dir = data_dir / "rgb_standardized"
 thermal_dir = data_dir / "thermal_standardized"
 

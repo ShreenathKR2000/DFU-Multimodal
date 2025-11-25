@@ -18,8 +18,9 @@ from models.classifier import Classifier
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # === LOAD DATA ===
+# Use the global standardized dataset location
 dataloaders, _ = get_dataloaders(
-    data_dir=Path.home() / "DFU_MMT" / "data",
+    data_dir=Path("/home/skr/CompVis/Dataset/data"),
     batch_size=12,
     num_workers=4
 )

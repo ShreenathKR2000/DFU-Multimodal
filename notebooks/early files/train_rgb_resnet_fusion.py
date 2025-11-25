@@ -55,9 +55,10 @@ RANDOM_SEED = 42
 CHECKPOINT_DIR = project_root / "logs" / "checkpoints"
 CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Data directories (standardized 224x224)
-RGB_DIR = project_root / "data" / "rgb_standardized"
-TH_DIR = project_root / "data" / "thermal_standardized"
+# Data directories (standardized 224x224) - global dataset root
+DATA_ROOT = Path("/home/skr/CompVis/Dataset/data")
+RGB_DIR = DATA_ROOT / "rgb_standardized"
+TH_DIR = DATA_ROOT / "thermal_standardized"
 
 # ---------------------------
 # Transforms (stronger augmentations)

@@ -87,7 +87,7 @@ def get_dataloaders(data_dir, batch_size=12, num_workers=4):
     thermal_transform = get_transforms("thermal")
 
     datasets = {split: DFUPairedDataset(
-        data_dir=data_dir,
+        data_dir=Path(data_dir),
         split=split,
         transform_rgb=rgb_transform,
         transform_thermal=thermal_transform
