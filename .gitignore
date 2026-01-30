@@ -36,6 +36,12 @@ dist/
 checkpoints/
 logs/
 
+# Explicitly allow tracking of these evaluation outputs
+!logs/
+!logs/EVALUATION_SUMMARY.txt
+!logs/extended_metrics/
+!logs/grad_cam_visualizations/
+
 # Python tooling
 .pytest_cache/
 .mypy_cache/

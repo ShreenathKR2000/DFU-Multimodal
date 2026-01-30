@@ -1,0 +1,82 @@
+================================================================================
+DFU MULTIMODAL MODEL EVALUATION SUMMARY
+================================================================================
+Date: $(date)
+
+DATASETS USED:
+- RGB Test Set: /home/skr/CompVis/Dataset/data/rgb/test
+  - 131 images (36 healthy, 95 ulcer)
+
+- Thermal Test Set: /home/skr/CompVis/Dataset/data/thermal/test  
+  - 276 images (130 healthy, 146 ulcer)
+
+- Multimodal Test Set: 276 paired samples
+  - Paired using max-length cycling (matches training methodology)
+  - 130 healthy pairs, 146 ulcer pairs
+
+================================================================================
+EXTENDED METRICS RESULTS (Test Set Performance)
+================================================================================
+
+RGB-ONLY MODEL (ResNet50):
+  F1-Score:        0.9645
+  Accuracy:        0.9466
+  Sensitivity:     1.0000 (Perfect ulcer detection!)
+  Specificity:     0.8056
+  ROC-AUC:         0.9971
+  Confusion Matrix: TN=29, FP=7, FN=0, TP=95
+
+THERMAL-ONLY MODEL (ViT):
+  F1-Score:        0.4825
+  Accuracy:        0.5725
+  Sensitivity:     0.3767
+  Specificity:     0.7923
+  ROC-AUC:         0.6564
+  Confusion Matrix: TN=103, FP=27, FN=91, TP=55
+
+MULTIMODAL FUSION MODEL (ResNet50 + ViT):
+  F1-Score:        0.7451
+  Accuracy:        0.7645
+  Sensitivity:     0.6507
+  Specificity:     0.8923
+  ROC-AUC:         0.8581
+  Confusion Matrix: TN=116, FP=14, FN=51, TP=95
+
+================================================================================
+KEY FINDINGS:
+================================================================================
+
+1. RGB-Only achieves BEST performance with perfect sensitivity (100% ulcer detection)
+2. Thermal-Only struggles with low sensitivity (only 37.67% ulcer detection)
+3. Multimodal shows improved specificity over RGB but lower sensitivity
+4. RGB-Only model is recommended for this specific dataset
+
+================================================================================
+GENERATED OUTPUTS:
+================================================================================
+
+Extended Metrics:
+  - /home/skr/CompVis/DFU_MMT/logs/extended_metrics/
+    ├── rgb_only/
+    │   ├── confusion_matrix_RGB-Only.png
+    │   ├── roc_curve_RGB-Only.png
+    │   ├── pr_curve_RGB-Only.png
+    │   └── results.pt
+    ├── thermal_only/
+    │   ├── confusion_matrix_Thermal-Only.png
+    │   ├── roc_curve_Thermal-Only.png
+    │   ├── pr_curve_Thermal-Only.png
+    │   └── results.pt
+    └── multimodal/
+        ├── confusion_matrix_Multimodal.png
+        ├── roc_curve_Multimodal.png
+        ├── pr_curve_Multimodal.png
+        └── results.pt
+
+Grad-CAM Visualizations (10 samples each):
+  - /home/skr/CompVis/DFU_MMT/logs/grad_cam_visualizations/
+    ├── rgb_only/       (10 visualizations)
+    ├── thermal_only/   (10 visualizations)
+    └── multimodal/     (10 visualizations showing both modalities)
+
+================================================================================
