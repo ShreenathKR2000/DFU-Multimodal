@@ -9,6 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+.venv/
 venv/
 ENV/
 build/
@@ -23,6 +24,9 @@ dist/
 # VSCode
 .vscode/
 
+# JetBrains
+.idea/
+
 # macOS
 .DS_Store
 
@@ -31,6 +35,16 @@ dist/
 *.pth
 checkpoints/
 logs/
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.coverage
+.cache
+
+# Environment files
+.env
+env_vars.sh
 
 # Ignore raw dataset directories and large image folders
 DFU_RGB/
@@ -57,3 +71,8 @@ data/paired/
 # Allow tracking a small sample folder if present
 data/sample/
 !data/sample/.gitkeep
+
+# Keep certain small metadata and docs (explicit allow)
+!data/dataset_info.txt
+!data/*.md
+!data/*.csv

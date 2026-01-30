@@ -1,239 +1,192 @@
-# Automated Early Detection of Diabetic Foot Ulcers Using Multimodal Deep Learning
+# DFU-MMT: Diabetic Foot Ulcer Modeling (RGB, Thermal, Multimodal)
 
-Main Takeaway
--------------
-Develop a multimodal deep learning system that classifies and stratifies early-stage diabetic foot ulcers by integrating standard photographic images (RGB) with thermal infrared data to improve early diagnosis, risk assessment, and personalized treatment recommendations.
+This repository implements and evaluates three DFU classifiers:
 
-1. Project Overview
--------------------
-Diabetic foot ulcers (DFUs) are a severe complication of diabetes, leading to infection, amputation, and high healthcare costs if not detected early. This project implements a multimodal CNN–Transformer fusion model that processes both RGB photographs and thermal infrared images of the foot to:
+- RGB-only (ResNet50)
+- Thermal-only (ViT-Base)
+- Multimodal Fusion (ResNet50 + ViT-Base)
 
-- Detect presence of ulcers at very early stages (Stage 0–I).
-- Classify ulcer risk levels (low, moderate, high) based on tissue perfusion and temperature anomalies.
-- Recommend personalized care interventions (e.g., offloading, topical treatments).
+It includes training scripts, extended medical metrics, and Grad-CAM visualizations on the test sets in `Dataset/data/`. The current results indicate very strong single-modality performance and a limitation in the fusion model due to the lack of a truly paired dataset (explained below).
 
-By combining surface texture features (RGB) with physiological cues (thermal), the system aims to outperform single-modality approaches in sensitivity and specificity.
+## Project Overview
 
-2. Dataset and Tools
---------------------
-2.1 Available / Used Datasets
+Diabetic foot ulcers (DFUs) are a major complication of diabetes. Early detection (Healthy vs Ulcer classification) benefits from combining surface texture (RGB) and physiological signals (Thermal). This project trains and evaluates separate RGB-only and Thermal-only models and a late-fusion multimodal model.
 
-- DFU RGB (Kaggle): ~493–512 RGB images depending on folder used (Original, Patches). Your local copy paths:
-  - `DFU_RGB/Original Images`
-  - `DFU_RGB/Patches/Abnormal` (ulcer)
-  - `DFU_RGB/Patches/Normal` (healthy)
+Key scripts and notebooks:
 
-- DFU Thermal (ThermoDataBase): Train/Val split with `Control Group` (healthy) and `DM Group` (diabetic / ulcer). Your local copy paths:
-  - `DFU_Thermal/ThermoDataBase/train/Control Group`
-  - `DFU_Thermal/ThermoDataBase/train/DM Group`
-  - `DFU_Thermal/ThermoDataBase/val/Control Group`
-  - `DFU_Thermal/ThermoDataBase/val/DM Group`
+- Training: `DFU_MMT/notebooks/train_rgb_only.py`, `DFU_MMT/notebooks/train_thermal_only.py`, `DFU_MMT/notebooks/train_multimodal_fusion.py`
+- Evaluation: `DFU_MMT/notebooks/extended_metrics.py`
+- Explainability: `DFU_MMT/notebooks/grad_cam_visualization.py`
 
-- Supplementary: ISIC skin lesion dataset (optional for transfer learning).
+## Dataset Structure
 
-Your recent processing output (from scripts) reports:
-- RGB: 512 abnormal, 543 healthy (split -> Train: 358 ulcer / 380 healthy; Val: 77 / 81; Test: 77 / 82).
-- Thermal (ThermoDataBase): Train control 720 / DM 724; val control 170 / DM 252. After splitting your processed counts: Train ~1,227, Val ~422, Test ~217.
+The organized dataset used for evaluation and visualizations follows:
 
-2.2 Tools & Frameworks
+```
+Dataset/data/
+  rgb/
+    train|val|test/
+      healthy/
+      ulcer/
+  thermal/
+    train|val|test/
+      healthy/
+      ulcer/
+```
 
-- PyTorch, torchvision, timm
-- OpenCV / Pillow for preprocessing
-- Albumentations for strong augmentation (optional)
-- scikit-learn for metrics and sampling
-- Grad-CAM / SHAP for explainability
+Evaluation and Grad-CAM operate on the `test` split for both modalities:
 
-3. Methodology
---------------
-3.1 Preprocessing & Standardization
+- `Dataset/data/rgb/test` → RGB images (Healthy=0, Ulcer=1)
+- `Dataset/data/thermal/test` → Thermal images (Healthy=0, Ulcer=1)
 
-- Images must be standardized to the same spatial resolution (recommended: 224×224) and channel format (3-channel RGB for both branches — convert/replicate thermal if single-channel).
-- Use `scripts/analyze_image_sizes.py` to inspect distributions and `scripts/standardize_images.py` to produce `data/rgb_standardized/` and `data/thermal_standardized/`.
-- Normalize with modality-specific statistics (ImageNet mean/std for RGB; custom mean/std for thermal e.g. mean=0.5 std=0.5 after scaling to [0,1]).
+## Models
 
-3.2 Model Architecture (high-level)
+All models use a two-class output (`num_classes=2`) with CrossEntropyLoss and softmax inference. This matches training and fixes earlier evaluation mismatches.
 
-- RGB branch: pretrained CNN (EfficientNet-B0 or ResNet-50) → feature vector
-- Thermal branch: lightweight CNN or modified ViT for small datasets → feature vector
-- Fusion: early or late fusion (concatenate feature vectors, optional gated fusion) → classification head
-- Outputs: binary ulcer presence + 3-class risk level (low/moderate/high)
+- RGB-only (ResNet50)
+  - Backbone: `torchvision.resnet50` (ImageNet weights)
+  - Head: `nn.Sequential(Dropout(0.5), Linear(2048 → 2))`
+  - Script: `train_rgb_only.py`
 
-3.3 Training
+- Thermal-only (ViT-Base)
+  - Backbone: `timm.create_model('vit_base_patch16_224')`
+  - Head: `nn.Sequential(Dropout(0.5), Linear(768 → 2))`
+  - Script: `train_thermal_only.py`
 
-- Transfer learning: freeze most backbone layers initially, fine-tune later
-- Losses: BCE for detection, categorical cross-entropy for risk. Weighted losses for imbalance
-- Optimizer: AdamW with cosine LR schedule. Early stopping on validation sensitivity.
+- Multimodal Fusion (Late fusion)
+  - RGB branch: ResNet50 with `fc = Identity()` to output 2048-d features
+  - Thermal branch: ViT-Base with features (768-d)
+  - Fusion MLP: `Linear(2048+768 → 512) → ReLU → Dropout(0.7) → Linear(512 → 2)`
+  - Script: `train_multimodal_fusion.py`
 
-4. Pairing Strategy (Option 3: Hybrid Approach)
------------------------------------------------
-Important: The Kaggle RGB and thermal datasets are NOT pixel- or patient-level paired (they come from different sources). True pixel-aligned pairing is not possible without metadata. We therefore recommend label-level pairing and careful balancing for multimodal training.
+## Multimodal Pairing Limitation (Important)
 
-Goals of pairing script/process:
-- Create a `data/paired/` structure with `train/`, `val/`, `test/` subfolders, each containing `rgb/healthy`, `rgb/ulcer`, `thermal/healthy`, `thermal/ulcer` and a paired manifest (CSV) describing which RGB image is paired with which thermal image.
-- Pair by label (healthy ↔ healthy, ulcer ↔ ulcer) using randomized, stratified sampling.
+The RGB and Thermal datasets come from different sources and are not patient-level paired. The current multimodal dataset is constructed by label-matching (Healthy ↔ Healthy, Ulcer ↔ Ulcer) and pseudo-pairing indices within each class. This means an RGB image and a Thermal image in a pair do not correspond to the same foot or patient.
 
-Strategies (choose one):
+Consequences observed:
 
-A) Label-matched random pairing (recommended)
-- Shuffle each modality's images by label.
-- For each RGB image in split X with label L, sample a thermal image of label L (without replacement) until one modality is exhausted.
-- If counts differ: either (1) sample thermal images with replacement to match RGB count, (2) downsample the bigger modality, or (3) oversample the smaller modality using augmentations.
+- The fusion model learns to always predict the positive class (Ulcer), yielding specificity of 0% on the test set.
+- This behavior is consistent with non-informative cross-modality pairing, where the model cannot learn coherent joint patterns.
 
-B) Stratified pairing by metadata (if available)
-- If you have metadata like patient_id, device, or timestamp, pair samples by similar metadata (preferable). If not, fallback to (A).
+Resolution path:
 
-C) Synchronized splitting then balanced pairing
-- First split each modality into train/val/test with the same ratios (70/15/15 recommended), preserving label distributions.
-- Then pair within each split using Strategy (A).
+- Acquire or construct truly paired RGB+Thermal DFU data (same patient/foot, same visit).
+- Alternatively, redesign fusion to be robust to unpaired data (e.g., contrastive pretraining, modality-specific heads with calibrated ensembling) — still inferior to real pairing.
 
-Why label-level pairing works
-- Model learns complementary cues: RGB texture vs. thermal perfusion.
-- The fusion module does feature-level combination rather than pixel-wise alignment.
-- Common approach in literature when paired data isn't available.
+## Results (Extended Metrics)
 
-5. Proposed File/Folder Outputs
-------------------------------
-data/
-- paired/
-  - train/
-    - rgb/healthy/
-    - rgb/ulcer/
-    - thermal/healthy/
-    - thermal/ulcer/
-    - pairs_train.csv   # columns: rgb_path, thermal_path, label
-  - val/
-  - test/
-- rgb/
-- thermal/
-- rgb_standardized/
-- thermal_standardized/
+Extended test metrics are stored in:
 
-6. Example pairing algorithm (label-matched)
---------------------------------------------
-The README includes a sample script you can run or I can create for you as `scripts/pair_datasets.py`. The algorithm is:
+- `DFU_MMT/logs/extended_metrics/rgb_only/results.pt`
+- `DFU_MMT/logs/extended_metrics/thermal_only/results.pt`
+- `DFU_MMT/logs/extended_metrics/multimodal/results.pt`
 
-1. Read file lists for each split and label from `data/rgb` and `data/thermal`.
-2. For each split and label, shuffle lists.
-3. If modality counts differ, choose one of: downsample (deterministic), oversample with replacement, or oversample with augmentations.
-4. Pair by zipping lists and write `data/paired/<split>/...` copying or symlinking files; also write `pairs_<split>.csv` with (rgb, thermal, label).
+Curves and confusion matrices are saved as PNGs in the same directories.
 
-Sample pairing code sketch (included below in README). If you'd like, I can create this as an executable `scripts/pair_datasets.py` now.
+Summary (from the saved metrics):
 
-7. Commands & Quick Start
--------------------------
-From project root (`~/DFU_MMT`):
+RGB-only (Test: 131 images → 36 Healthy, 95 Ulcer)
+
+- Confusion: TN=35, FP=1, FN=1, TP=94
+- Accuracy: 0.9847 | F1: 0.9895
+- Sensitivity (Recall Ulcer): 0.9895 | Specificity (Healthy): 0.9722
+- ROC-AUC: 0.9994 | PR-AUC: 0.9998
+
+Thermal-only (Test: 276 images → 130 Healthy, 146 Ulcer)
+
+- Confusion: TN=130, FP=0, FN=3, TP=143
+- Accuracy: 0.9891 | F1: 0.9896
+- Sensitivity: 0.9795 | Specificity: 1.0000
+- ROC-AUC: 0.9997 | PR-AUC: 0.9997
+
+Multimodal Fusion (Test: 276 pairs → 130 Healthy, 146 Ulcer)
+
+- Confusion: TN=0, FP=130, FN=0, TP=146
+- Accuracy: 0.5290 | F1: 0.6919
+- Sensitivity: 1.0000 | Specificity: 0.0000
+- ROC-AUC: 0.3876 | PR-AUC: 0.4653
+
+Interpretation:
+
+- Single-modality models (RGB-only, Thermal-only) perform near perfectly and match training-level performance.
+- The fusion model collapses to predicting “Ulcer” for all samples — an expected outcome without true pairing.
+
+## Grad-CAM Visualizations
+
+The Grad-CAM script generates balanced visualizations (5 healthy + 5 ulcer per model) from the `test` sets:
+
+- Script: `DFU_MMT/notebooks/grad_cam_visualization.py`
+- Output directory: `DFU_MMT/logs/grad_cam_visualizations/`
+  - Subfolders: `rgb_only/`, `thermal_only/`, `multimodal/`
+  - Files: `healthy_00.png`, `ulcer_00.png`, etc.
+
+The script uses softmax predictions and correct two-class heads for all models.
+
+## How to Run
+
+Activate the environment:
 
 ```bash
-# 1) Verify structure
-python3 scripts/verify_structure.py
-
-# 2) Prepare RGB / Thermal splits (if not done)
-python3 scripts/prepare_datasets.py
-
-# 3) Analyze sizes
-python3 scripts/analyze_image_sizes.py
-
-# 4) Standardize images to 224x224
-python3 scripts/standardize_images.py
-
-# 5) (Optional) Pair datasets (creates data/paired)
-# If I create the script: python3 scripts/pair_datasets.py --rgb data/rgb_standardized --thermal data/thermal_standardized --out data/paired
-
-# 6) Use data loaders / train
-python3 notebooks/train_rgb_vit_fusion.py
+source /home/skr/CompVis/.venv/bin/activate
 ```
 
-8. Pairing script example (label-matched, simplified)
------------------------------------------------------
-```python
-# Example: scripts/pair_datasets.py (sketch)
-# - pairs by label within each split
+Train:
 
-import argparse
-from pathlib import Path
-import random
-import csv
-import shutil
+```bash
+# RGB-only
+python DFU_MMT/notebooks/train_rgb_only.py
 
-def list_images(dirpath):
-    return sorted([p for p in Path(dirpath).glob('**/*') if p.suffix.lower() in {'.jpg','.jpeg','.png','.bmp','.tif','.tiff'}])
+# Thermal-only
+python DFU_MMT/notebooks/train_thermal_only.py
 
-def ensure_dirs(base_out):
-    for split in ['train','val','test']:
-        for mod in ['rgb','thermal']:
-            for lab in ['healthy','ulcer']:
-                (base_out / split / mod / lab).mkdir(parents=True, exist_ok=True)
-
-def pair_by_label(rgb_dir, th_dir, out_dir, split):
-    rgb_h = list_images(rgb_dir / split / 'healthy')
-    rgb_u = list_images(rgb_dir / split / 'ulcer')
-    th_h = list_images(th_dir / split / 'healthy')
-    th_u = list_images(th_dir / split / 'ulcer')
-
-    pairs = []
-    for rgb_list, th_list, label in [(rgb_h, th_h, 0),(rgb_u, th_u, 1)]:
-        random.shuffle(rgb_list)
-        random.shuffle(th_list)
-        # handle differing lengths: sample with replacement from smaller
-        if len(th_list) < len(rgb_list):
-            th_list = th_list + list(random.choices(th_list, k=len(rgb_list)-len(th_list)))
-        elif len(rgb_list) < len(th_list):
-            rgb_list = rgb_list + list(random.choices(rgb_list, k=len(th_list)-len(rgb_list)))
-        for r, t in zip(rgb_list, th_list):
-            # copy or symlink
-            r_out = out_dir / split / 'rgb' / ('healthy' if label==0 else 'ulcer') / r.name
-            t_out = out_dir / split / 'thermal' / ('healthy' if label==0 else 'ulcer') / t.name
-            shutil.copy2(r, r_out)
-            shutil.copy2(t, t_out)
-            pairs.append((str(r_out), str(t_out), label))
-    # write CSV
-    with open(out_dir / f'pairs_{split}.csv','w',newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['rgb_path','thermal_path','label'])
-        writer.writerows(pairs)
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--rgb', required=True)
-    parser.add_argument('--thermal', required=True)
-    parser.add_argument('--out', required=True)
-    args = parser.parse_args()
-    rgb_dir = Path(args.rgb)
-    th_dir = Path(args.thermal)
-    out_dir = Path(args.out)
-    ensure_dirs(out_dir)
-    for split in ['train','val','test']:
-        pair_by_label(rgb_dir, th_dir, out_dir, split)
+# Multimodal fusion (note the pairing limitation)
+python DFU_MMT/notebooks/train_multimodal_fusion.py
 ```
 
-Notes about the sketch:
-- It demonstrates label-level matching and handles differing counts by sampling with replacement.
-- You can change sampling behavior to downsample the larger modality or use augmentation for upsampling.
-- Use symlinks instead of copies to save disk if you prefer (`os.symlink`).
+Evaluate extended metrics (uses test folders under `Dataset/data/`):
 
-9. Image sizes & standardization (your questions answered)
----------------------------------------------------------
-- Are the image sizes OK? No — standardization to 224×224 is required.
-- Do both models require same image size for comparison? Yes — both branches should receive the same spatial size (224×224 recommended).
-- Will mismatch occur during training if not standardized? Yes — DataLoader batching and fusion layers will fail.
-- Do images need standardization? Yes — convert all to `224×224` and save to `data/*_standardized`.
+```bash
+python DFU_MMT/notebooks/extended_metrics.py
+```
 
-10. Next steps I can do for you (pick any):
-- Create `scripts/pair_datasets.py` (fully implemented) and run it here to produce `data/paired`.
-- Create `scripts/pairing_report.md` summarizing exact counts after pairing and produce `data/dataset_info.txt`.
-- Implement data loader changes to read `data/paired` (if you want a paired dataset class).
+Generate Grad-CAM visualizations (balanced 5+5 per model):
 
-If you want me to create the pairing script now and run it on your local copies, reply: "Create and run pairing script" and I will:
-1) create `scripts/pair_datasets.py`, 2) run `python3 scripts/pair_datasets.py --rgb data/rgb_standardized --thermal data/thermal_standardized --out data/paired`, 3) return a short report with counts and any warnings.
+```bash
+python DFU_MMT/notebooks/grad_cam_visualization.py
+```
 
----
+## Checkpoints & Outputs
 
-Project files of interest (already present):
-- `scripts/prepare_datasets.py` — Splits and organizes RGB/Thermal into `data/rgb` and `data/thermal`.
-- `scripts/verify_structure.py` — Checks folder layout and counts.
-- `scripts/standardize_images.py` — Produces `data/*_standardized` (224×224).
-- `notebooks/train_rgb_vit_fusion.py` — Example training script (uses paired dataset loader `DFUPairedDataset`).
+Checkpoints
 
-Contact / Author
-----------------
-If you'd like I can now create and run the pairing script and produce `data/paired/` and the `pairs_*.csv` manifests. Reply with: "Please create and run pairing script" or say which behavior you prefer for unequal counts: `oversample`, `downsample`, or `augment`.
+- RGB-only: `DFU_MMT/logs/checkpoints_rgb_only/best_model.pt`
+- Thermal-only: `DFU_MMT/logs/checkpoints_thermal_only/best_model.pt`
+- Multimodal fusion: `DFU_MMT/logs/checkpoints_multimodal/best_model.pt`
+
+Extended Metrics
+
+- `DFU_MMT/logs/extended_metrics/{rgb_only,thermal_only,multimodal}/results.pt`
+- Curves: `roc_curve_*.png`, `pr_curve_*.png`
+- Confusion: `confusion_matrix_*.png`
+
+Grad-CAM Visualizations
+
+- `DFU_MMT/logs/grad_cam_visualizations/{rgb_only,thermal_only,multimodal}/`
+
+## Implementation Notes
+
+- All evaluation scripts now use two-class outputs with CrossEntropyLoss and softmax predictions.
+- Checkpoint loaders map training-time keys (`backbone.*`) to evaluation-time modules (`resnet.*` or `vit.*`) and load with `strict=False` for compatibility.
+- Thermal images are converted to three-channel RGB for consistency with ViT input.
+
+## Future Work
+
+- Build or acquire a truly paired RGB+Thermal DFU dataset (same patient/visit) to enable effective fusion.
+- Explore robust fusion strategies with unpaired data (contrastive multimodal pretraining, calibrated ensembling).
+- Add patient-level metrics, calibration curves, and threshold analysis.
+- Automate Grad-CAM batch export and reports across all splits.
+
+## Acknowledgements
+
+This work uses PyTorch, TorchVision, TIMM, scikit-learn, and common explainability tools (Grad-CAM). Data organization follows the `Dataset/data` structure prepared by the included scripts.
+
