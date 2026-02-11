@@ -189,6 +189,8 @@ Grad-CAM Visualizations
 ## Acknowledgements
 
 This work uses PyTorch, TorchVision, TIMM, scikit-learn, and common explainability tools (Grad-CAM). Data organization follows the `Dataset/data` structure prepared by the included scripts.
-RGB Dataset (Kaggle: laithjj/diabetic-foot-ulcer-dfu)
-Thermal Dataset (Kaggle: vuppalaadithyasairam/thermography-images-of-diabetic-foot)
+
+RGB Dataset (Kaggle: laithjj/diabetic-foot-ulcer-dfu).
+
+Thermal Dataset (Kaggle: vuppalaadithyasairam/thermography-images-of-diabetic-foot).
 
